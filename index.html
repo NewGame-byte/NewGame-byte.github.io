@@ -1,0 +1,440 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Find the Ball — Slow & Smooth</title>
+<style>
+  :root{
+    --bg1:#071025;
+    --bg2:#0b1724;
+    --table:#06321b;
+    --cup1:#d62828;
+    --cup2:#ff5050;
+    --ball:#ffcc00;
+    --muted:#98afc7;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;height:100vh;display:flex;align-items:center;justify-content:center;
+    font-family:Inter,ui-sans-serif,system-ui,Arial;color:#eef8ff;
+    background:linear-gradient(180deg,var(--bg1),var(--bg2));
+  }
+  .app{
+    width:min(920px,96vw);padding:18px;border-radius:12px;background:rgba(255,255,255,0.02);
+    box-shadow:0 12px 40px rgba(0,0,0,.6);
+  }
+  header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
+  h1{font-size:18px;margin:0}
+  .controls{display:flex;gap:8px;align-items:center}
+  .btn{background:#0b2b45;border:none;color:#dff3ff;padding:8px 12px;border-radius:8px;cursor:pointer}
+  .btn:disabled{opacity:.5;cursor:not-allowed}
+  .arena{position:relative;height:340px}
+  .table{
+    position:absolute;left:50%;transform:translateX(-50%);bottom:26px;width:90%;height:220px;border-radius:12px;
+    background:var(--table);box-shadow:0 12px 35px rgba(0,0,0,.6);display:flex;padding:18px;align-items:flex-start;
+    justify-content:space-between;
+  }
+
+  .slot{width:33.333%;display:flex;align-items:flex-end;justify-content:center;padding:10px;position:relative}
+  .cup{
+    width:120px; max-width:30vw; height:150px; border-radius:18px 18px 10px 10px;
+    background:linear-gradient(180deg,var(--cup1),var(--cup2)); box-shadow: 0 14px 30px rgba(0,0,0,.5);
+    position:relative; cursor:pointer; user-select:none; display:flex; align-items:flex-end; justify-content:center;
+    transform-origin:center bottom;
+  }
+  .cup.revealed{ background: linear-gradient(180deg,#f1c40f,#d4a500); }
+  .ball{
+    width:28px;height:28px;border-radius:50%;background:var(--ball);box-shadow:0 8px 18px rgba(0,0,0,.45);
+    position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:block;
+  }
+  .ball.hidden{ display:none !important; }
+  .message{ color:var(--muted); font-size:13px; margin-top:8px; text-align:center }
+  footer{ display:flex; justify-content:space-between; margin-top:12px; color:var(--muted) }
+  .popup{
+    position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);
+    display:flex;align-items:center;justify-content:center;z-index:10;backdrop-filter:blur(2px);
+  }
+  .popup-box{
+    background:#102035;border-radius:12px;padding:20px 30px;text-align:center;
+    box-shadow:0 0 40px rgba(0,0,0,.5);animation:fadeIn .4s ease;
+  }
+  .popup h2{margin-top:0;color:#fff}
+  .popup button{margin:8px;padding:8px 16px;border:none;border-radius:6px;cursor:pointer}
+  .popup .reset{background:#d62828;color:#fff}
+  .popup .revive{background:#1e90ff;color:#fff}
+  @keyframes fadeIn{from{opacity:0;transform:scale(.9)}to{opacity:1;transform:scale(1)}}
+  .leaderboard{
+    text-align:center;margin-top:20px;background:rgba(255,255,255,0.05);
+    border-radius:10px;padding:10px;
+  }
+  .leaderboard table{width:100%;border-collapse:collapse;color:#fff}
+  .leaderboard th,.leaderboard td{padding:6px}
+  .leaderboard tr:nth-child(odd){background:rgba(255,255,255,0.05)}
+
+    .leaderboard tr:nth-child(odd){background:rgba(255,255,255,0.05)}
+
+/* ⬇️ Paste Step 2 code right here ⬇️ */
+.leaderboard {
+  margin: 40px auto;
+  padding: 20px;
+  width: 90%;
+  max-width: 700px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  box-shadow: 0 4px 25px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  color: white;
+  animation: fadeIn 0.5s ease;
+}
+
+.leaderboard h2 {
+  font-size: 1.5rem;
+  margin-bottom: 12px;
+  color: #fff;
+  letter-spacing: 0.5px;
+}
+
+.leaderboard table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 1rem;
+}
+
+.leaderboard th,
+.leaderboard td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.leaderboard tr:nth-child(even) {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.leaderboard tr:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.leaderboard th {
+  color: #a9d8ff;
+  font-weight: 600;
+}
+
+.leaderboard td {
+  color: #e8f4ff;
+}
+/* ⬆️ End of Step 2 code ⬆️ */
+</style>
+</head>
+<body>
+  <div class="app" role="application" aria-label="Cup and Ball game">
+    <header>
+      <h1>Find the Ball</h1>
+      <div class="controls">
+        <div class="info">Round: <strong id="round">1</strong></div>
+        <div class="info" style="margin-left:6px">Score: <strong id="score">0</strong></div>
+        <button id="startBtn" class="btn">Start Round</button>
+        <button id="resetBtn" class="btn">Reset</button>
+      </div>
+    </header>
+
+    <div class="arena">
+      <div class="table" id="table"></div>
+      <div class="message" id="message">Ball is visible. Press <strong>Start Round</strong> to shuffle.</div>
+    </div>
+
+    <footer>
+      <div class="muted">Cups lift and move one swap at a time — follow the cup.</div>
+      <div id="status" class="muted"></div>
+    </footer>
+  </div>
+
+<script>
+const table=document.getElementById('table');
+const startBtn=document.getElementById('startBtn');
+const resetBtn=document.getElementById('resetBtn');
+const msg=document.getElementById('message');
+const roundEl=document.getElementById('round');
+const scoreEl=document.getElementById('score');
+const status=document.getElementById('status');
+
+const STATE={
+  slots:[],
+  cups:[],
+  ballIdentity:0,
+  playing:false,
+  round:1,
+  score:0,
+  startedOnce:false,
+  awaitingGuess:false,
+  clickedThisRound:false
+};
+
+function createBoard(){
+  table.innerHTML='';
+  STATE.slots=[];STATE.cups=[];
+  for(let s=0;s<3;s++){
+    const slot=document.createElement('div');
+    slot.className='slot';
+    table.appendChild(slot);
+    STATE.slots.push(slot);
+  }
+  for(let i=0;i<3;i++){
+    const cup=document.createElement('div');
+    cup.className='cup';cup.dataset.index=i;
+    const ball=document.createElement('div');
+    ball.className='ball';
+    if(i!==STATE.ballIdentity) ball.classList.add('hidden');
+    cup.appendChild(ball);
+    cup.addEventListener('click',onCupClicked);
+    STATE.cups.push(cup);
+  }
+  STATE.slots.forEach((slot,idx)=>slot.appendChild(STATE.cups[idx]));
+}
+
+function resetGame(){
+  STATE.playing=false;STATE.round=1;STATE.score=0;STATE.ballIdentity=Math.floor(Math.random()*3);
+  STATE.startedOnce=false;STATE.awaitingGuess=false;STATE.clickedThisRound=false;
+  createBoard();updateUI();
+  msg.innerHTML='Ball is visible. Press <strong>Start Round</strong> to shuffle.';
+  status.textContent='';
+  enableClicks(false);
+  startBtn.disabled=false;
+}
+
+function updateUI(){
+  roundEl.textContent=STATE.round;
+  scoreEl.textContent=STATE.score;
+  status.textContent=`Round ${STATE.round} • Score ${STATE.score}`;
+}
+
+function enableClicks(allow){
+  STATE.slots.forEach(sl=>sl.style.pointerEvents=allow?'auto':'none');
+  STATE.slots.forEach(sl=>{
+    const c=sl.firstElementChild;if(c) c.style.cursor=allow?'pointer':'default';
+  });
+}
+
+function findSlotIndexByCupIdentity(id){
+  for(let i=0;i<STATE.slots.length;i++){
+    const c=STATE.slots[i].firstElementChild;
+    if(c&&Number(c.dataset.index)===id)return i;
+  }
+  return -1;
+}
+
+async function startRound(){
+  if(STATE.playing||STATE.awaitingGuess)return;
+  STATE.startedOnce=true;
+  STATE.playing=true;
+  STATE.awaitingGuess=false;
+  STATE.clickedThisRound=false;
+  enableClicks(false);
+  startBtn.disabled=true;
+  resetBtn.disabled=true;
+  msg.textContent='Shuffling...';
+  STATE.cups.forEach(c=>c.querySelector('.ball').classList.add('hidden'));
+  const swaps=Math.min(8,2+Math.floor(STATE.round/2));
+  const speed=Math.max(380,700-(STATE.round*30));
+  for(let i=0;i<swaps;i++){
+    await performSwap(speed);
+    await delay(120);
+  }
+  STATE.playing=false;
+  STATE.awaitingGuess=true;
+  enableClicks(true);
+  startBtn.disabled=false;
+  resetBtn.disabled=false;
+  msg.textContent='Pick a cup!';
+  updateUI();
+}
+
+function performSwap(speed){
+  return new Promise(res=>{
+    let a=Math.floor(Math.random()*3),b=Math.floor(Math.random()*3);
+    while(b===a)b=Math.floor(Math.random()*3);
+    const slotA=STATE.slots[a],slotB=STATE.slots[b];
+    const cupA=slotA.firstElementChild,cupB=slotB.firstElementChild;
+    const rectA=cupA.getBoundingClientRect(),rectB=cupB.getBoundingClientRect();
+    const dx=rectB.left-rectA.left;
+    cupA.style.transition=cupB.style.transition=`transform ${speed}ms cubic-bezier(.2,.9,.3,1)`;
+    cupA.style.transform=`translate(${dx}px,-18px)`;
+    cupB.style.transform=`translate(${-dx}px,-18px)`;
+    setTimeout(()=>{
+      cupA.style.transition=cupB.style.transition='';
+      cupA.style.transform=cupB.style.transform='';
+      slotA.replaceChild(cupB,cupA);
+      slotB.appendChild(cupA);
+      STATE.cups=STATE.slots.map(sl=>sl.firstElementChild);
+      res();
+    },speed+8);
+  });
+}
+
+function delay(ms){return new Promise(r=>setTimeout(r,ms));}
+
+function onCupClicked(e){
+  if(STATE.playing||!STATE.awaitingGuess||STATE.clickedThisRound)return;
+  STATE.clickedThisRound=true;
+  enableClicks(false);
+  const cup=e.currentTarget;
+  const clickedIdentity=Number(cup.dataset.index);
+  revealBallUnderIdentity(STATE.ballIdentity);
+  if(clickedIdentity===STATE.ballIdentity){
+    STATE.score++;msg.textContent='✅ Correct!';
+  }else{
+    msg.textContent='❌ Wrong!';
+    showGameOverPopup();
+    return;
+  }
+  STATE.round++;STATE.awaitingGuess=false;updateUI();
+  setTimeout(()=>{
+    STATE.ballIdentity=Math.floor(Math.random()*3);
+    placeBallVisible();
+    msg.innerHTML='Ball is visible. Press <strong>Start Round</strong> to shuffle.';
+    enableClicks(false);
+  },1200);
+}
+
+function revealBallUnderIdentity(id){
+  STATE.slots.forEach(sl=>{
+    const c=sl.firstElementChild,b=c.querySelector('.ball');
+    if(Number(c.dataset.index)===id){b.classList.remove('hidden');c.classList.add('revealed');}
+    else{b.classList.add('hidden');c.classList.remove('revealed');}
+  });
+}
+function placeBallVisible(){
+  STATE.slots.forEach(sl=>{
+    const c=sl.firstElementChild,b=c.querySelector('.ball');
+    if(Number(c.dataset.index)===STATE.ballIdentity)b.classList.remove('hidden');
+    else b.classList.add('hidden');
+    c.classList.remove('revealed');
+  });
+}
+
+function showGameOverPopup(){
+  const overlay=document.createElement('div');
+  overlay.className='popup';
+  overlay.innerHTML=`
+    <div class="popup-box">
+      <h2>Game Over</h2>
+      <p>Your score: ${STATE.score}</p>
+      <button class="reset">Reset</button>
+      <button class="revive">Revive</button>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.querySelector('.reset').onclick = () => {
+  // fully remove popup before showing leaderboard
+  overlay.remove();
+
+  // wait a short moment, then show leaderboard
+  setTimeout(() => {
+    showLeaderboard();
+  }, 100);
+  };
+  overlay.querySelector('.revive').onclick = () => {
+    // open revive link in a new tab
+    window.open('https://watchnow.site/ooqnt', '_blank');
+
+    // temporarily disable revival
+    msg.textContent = '⏳ Please wait 5 seconds...';
+
+    // disable buttons while waiting
+    startBtn.disabled = true;
+    resetBtn.disabled = true;
+
+    // wait 5 seconds before allowing play again
+    setTimeout(() => {
+        // close the popup
+        overlay.remove();
+
+        // show "revived" message and resume play
+        msg.textContent = '💫 Revived! You can continue playing!';
+        STATE.playing = false;
+        STATE.awaitingGuess = false;
+        STATE.clickedThisRound = false;
+
+        // re-show the ball so they can start again
+        STATE.ballIdentity = Math.floor(Math.random() * 3);
+        placeBallVisible();
+
+        // re-enable buttons
+        enableClicks(false);
+        startBtn.disabled = false;
+        resetBtn.disabled = false;
+    }, 5000); // 5000 ms = 5 seconds
+    };
+
+}
+
+function showLeaderboard(){
+  const fakeNames = [
+    ['Rimsha', 978],
+    ['Hassan', 865],
+    ['Yamir', 842],
+    ['Faizan', 820],
+    ['Taha', 795],
+    ['Minal', 782],
+    ['Emaan', 769],
+    ['Zara', 756],
+    ['Haider', 740],
+    ['Maaz', 681],
+    ['Hiba', 672],
+    ['Usman', 664],
+    ['Rida', 657],
+    ['Noor', 649],
+    ['Bilal', 641],
+    ['Laiba', 635],
+    ['Arham', 628],
+    ['Iqra', 621],
+    ['Sameer', 613],
+    ['Dania', 605],
+    ['Farhan', 582],
+    ['Anaya', 576],
+    ['Sufyan', 568],
+    ['Nida', 562],
+    ['Ahmed', 555],
+    ['Sami', 536],
+    ['Aqsa', 530],
+    ['Taimoor', 523],
+    ['Hira', 517],
+    ['Musa', 510],
+    ['Aleena', 503],
+    ['Saad', 497],
+    ['Kashan', 439],
+    ['Areesha', 432],
+    ['Salman', 426],
+    ['Maham', 419]
+
+  ];
+  const div=document.createElement('div');
+  div.className='leaderboard';
+  let html='<h2>Leaderboard</h2><table><tr><th>Name</th><th>Wins</th></tr>';
+  fakeNames.forEach((n,i)=>html+=`<tr><td>${i+1}. ${n[0]}</td><td>${n[1]}</td></tr>`);
+  html+=`<tr><td>${fakeNames.length+1}. You</td><td>${STATE.score}</td></tr></table>`;
+  div.innerHTML=html;
+  // Append leaderboard inside the game box, below the table
+    const app = document.querySelector('.app');
+    const footer = app.querySelector('footer');
+    footer.insertAdjacentElement('afterend', div);
+    div.scrollIntoView({ behavior: 'smooth' });
+}
+
+startBtn.addEventListener('click',startRound);
+resetBtn.addEventListener('click', () => {
+  // remove popup if visible
+  const popup = document.querySelector('.popup');
+  if (popup) popup.remove();
+
+  // also remove leaderboard if visible
+  const lb = document.querySelector('.leaderboard');
+  if (lb) lb.remove();
+
+  // reset game
+  resetGame();
+});
+resetGame();
+updateUI();
+</script>
+</body>
+</html>
